@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import os
 
 import streamlit as st
@@ -11,6 +12,27 @@ from agent.loop import run_agent
 
 st.set_page_config(page_title="Agent loop", page_icon="🤖")
 load_local_env()
+
+
+def check_password() -> None:
+    """Simple gate: if APP_PASSWORD is set (secrets or env), ask for it once per session."""
+    try:
+        expected = str(st.secrets.get("APP_PASSWORD", "") or "")
+    except Exception:
+        expected = ""
+    expected = expected or os.environ.get("APP_PASSWORD", "")
+    if not expected or st.session_state.get("authed"):
+        return
+    pw = st.text_input("Password", type="password")
+    if pw and hmac.compare_digest(pw, expected):
+        st.session_state.authed = True
+        st.rerun()
+    if pw:
+        st.error("Wrong password.")
+    st.stop()
+
+
+check_password()
 
 st.title("Agent loop")
 st.caption("An LLM, a few tools, and a loop: call a tool, read the result, then answer or stop.")
